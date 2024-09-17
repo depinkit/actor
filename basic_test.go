@@ -70,8 +70,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestActorMessaging(t *testing.T) {
-	addrs1, priv1, peer1 := newLibp2pNetwork(t, "15219", []multiaddr.Multiaddr{})
-	_, priv2, peer2 := newLibp2pNetwork(t, "15220", addrs1)
+	addrs1, priv1, peer1 := newLibp2pNetwork(t, []multiaddr.Multiaddr{})
+	_, priv2, peer2 := newLibp2pNetwork(t, addrs1)
 
 	res, err := peer2.Ping(context.Background(), peer1.Host.ID().String(), time.Second)
 	assert.NoError(t, err)
@@ -156,8 +156,8 @@ func TestActorBroadcast(t *testing.T) {
 	topic := "test"
 	behavior := "/broadcast/test"
 
-	addrs1, priv1, peer1 := newLibp2pNetwork(t, "15219", []multiaddr.Multiaddr{})
-	_, priv2, peer2 := newLibp2pNetwork(t, "15220", addrs1)
+	addrs1, priv1, peer1 := newLibp2pNetwork(t, []multiaddr.Multiaddr{})
+	_, priv2, peer2 := newLibp2pNetwork(t, addrs1)
 
 	res, err := peer2.Ping(context.Background(), peer1.Host.ID().String(), time.Second)
 	if err != nil {
@@ -352,7 +352,7 @@ func createActor(t *testing.T, peer *libp2p.Libp2p, cap ucan.CapabilityContext) 
 	return actor
 }
 
-func newLibp2pNetwork(t *testing.T, port string, bootstrap []multiaddr.Multiaddr) ([]multiaddr.Multiaddr, crypto.PrivKey, *libp2p.Libp2p) {
+func newLibp2pNetwork(t *testing.T, bootstrap []multiaddr.Multiaddr) ([]multiaddr.Multiaddr, crypto.PrivKey, *libp2p.Libp2p) {
 	priv, _, err := crypto.GenerateKeyPair(crypto.Ed25519)
 	assert.NoError(t, err)
 	net, err := network.NewNetwork(&types.NetworkConfig{
@@ -364,7 +364,7 @@ func newLibp2pNetwork(t *testing.T, port string, bootstrap []multiaddr.Multiaddr
 			Server:                  false,
 			Scheduler:               backgroundtasks.NewScheduler(1),
 			CustomNamespace:         "/nunet-dht-1/",
-			ListenAddress:           []string{"/ip4/127.0.0.1/tcp/" + port},
+			ListenAddress:           []string{"/ip4/127.0.0.1/tcp/0"},
 			PeerCountDiscoveryLimit: 40,
 			GossipMaxMessageSize:    2 << 16,
 		},
