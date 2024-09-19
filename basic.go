@@ -96,7 +96,7 @@ func (a *BasicActor) handleMessage(data []byte) {
 		return
 	}
 
-	_ = a.dispatch.Receive(msg)
+	_ = a.Receive(msg)
 }
 
 func (a *BasicActor) Context() context.Context {
@@ -151,14 +151,6 @@ func (a *BasicActor) Send(msg Envelope) error {
 		}
 	}
 
-	addrs, err := a.network.ResolveAddress(
-		a.Context(),
-		msg.To.Address.HostID,
-	)
-	if err != nil {
-		return fmt.Errorf("resolving address for %s: %w", msg.To.ID, err)
-	}
-
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("marshaling message: %w", err)
@@ -166,7 +158,7 @@ func (a *BasicActor) Send(msg Envelope) error {
 
 	err = a.network.SendMessage(
 		a.Context(),
-		addrs,
+		msg.To.Address.HostID,
 		types.MessageEnvelope{
 			Type: types.MessageType(
 				fmt.Sprintf("actor/%s/messages/0.0.1", msg.To.Address.InboxAddress),

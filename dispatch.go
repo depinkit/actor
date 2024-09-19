@@ -144,7 +144,7 @@ func (k *Dispatch) recv() {
 		case msg := <-k.q:
 			if err := k.sctx.Verify(msg); err != nil {
 				log.Debugf("failed to verify message from %s: %s", msg.From, err)
-				return
+				continue
 			}
 
 			k.vq <- msg
@@ -177,12 +177,12 @@ func (k *Dispatch) dispatch() {
 			if msg.IsBroadcast() {
 				if err := k.sctx.RequireBroadcast(msg, b.opt.Topic, b.opt.Capability); err != nil {
 					k.mx.Unlock()
-					log.Warnf("broadcast message from %s does not have the required capability %s: %s", msg.From, b.opt.Capability, err)
+					log.Warnf("broadcast message from %s does not have the required capability %s %s: %s", msg.From, b.opt.Capability, string(msg.Capability), err)
 					continue
 				}
 			} else if err := k.sctx.Require(msg, b.opt.Capability); err != nil {
 				k.mx.Unlock()
-				log.Warnf("message from %s does not have the required capability %s: %s", msg.From, b.opt.Capability, err)
+				log.Warnf("message from %s does not have the required capability %s %s: %s", msg.From, b.opt.Capability, string(msg.Capability), err)
 				continue
 			}
 
@@ -202,6 +202,7 @@ func (k *Dispatch) dispatch() {
 				k.sctx.Discard(msg)
 			}
 
+			log.Debugf("dispatching message from %s to %s", msg.From, msg.Behavior)
 			go func() {
 				defer k.options.Limiter.Release(msg)
 				b.cont(msg)
