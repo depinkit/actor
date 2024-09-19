@@ -164,7 +164,9 @@ func (a *BasicActor) Send(msg Envelope) error {
 				fmt.Sprintf("actor/%s/messages/0.0.1", msg.To.Address.InboxAddress),
 			),
 			Data: data,
-		})
+		},
+		msg.Expiry(),
+	)
 	if err != nil {
 		return fmt.Errorf("sending message to %s: %w", msg.To.ID, err)
 	}
