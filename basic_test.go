@@ -370,10 +370,10 @@ func newLibp2pNetwork(t *testing.T, bootstrap []multiaddr.Multiaddr) ([]multiadd
 		},
 	}, afero.NewMemMapFs())
 	assert.NoError(t, err)
-	err = net.Init(context.Background())
+	err = net.Init()
 	assert.NoError(t, err)
 
-	err = net.Start(context.Background())
+	err = net.Start()
 	assert.NoError(t, err)
 
 	libp2pInstance, _ := net.(*libp2p.Libp2p)
