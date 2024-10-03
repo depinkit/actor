@@ -59,13 +59,13 @@ func (l *BasicRateLimiter) Allow(msg Envelope) bool {
 	}
 
 	if isPublicBehavior(msg) {
-		return l.allowPublic(msg)
+		return l.allowPublic()
 	}
 
 	return true
 }
 
-func (l *BasicRateLimiter) allowPublic(_ Envelope) bool {
+func (l *BasicRateLimiter) allowPublic() bool {
 	l.mx.Lock()
 	defer l.mx.Unlock()
 
@@ -96,13 +96,13 @@ func (l *BasicRateLimiter) Acquire(msg Envelope) error {
 	}
 
 	if isPublicBehavior(msg) {
-		return l.acquirePublic(msg)
+		return l.acquirePublic()
 	}
 
 	return nil
 }
 
-func (l *BasicRateLimiter) acquirePublic(_ Envelope) error {
+func (l *BasicRateLimiter) acquirePublic() error {
 	l.mx.Lock()
 	defer l.mx.Unlock()
 
@@ -144,11 +144,11 @@ func (l *BasicRateLimiter) Release(msg Envelope) {
 	if msg.IsBroadcast() {
 		l.releaseBroadcast(msg)
 	} else if isPublicBehavior(msg) {
-		l.releasePublic(msg)
+		l.releasePublic()
 	}
 }
 
-func (l *BasicRateLimiter) releasePublic(_ Envelope) {
+func (l *BasicRateLimiter) releasePublic() {
 	l.mx.Lock()
 	defer l.mx.Unlock()
 
