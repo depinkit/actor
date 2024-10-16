@@ -143,7 +143,7 @@ func (msg *Envelope) Expired() bool {
 func (msg *Envelope) Expiry() time.Time {
 	sec := msg.Options.Expire / uint64(time.Second)
 	nsec := msg.Options.Expire % uint64(time.Second)
-	return time.Unix(int64(sec), int64(nsec)) //nolint
+	return time.Unix(int64(sec), int64(nsec))
 }
 
 func (msg *Envelope) IsBroadcast() bool {
