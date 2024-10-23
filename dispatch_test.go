@@ -93,9 +93,9 @@ func generateSecurityContext(t *testing.T) *BasicSecurityContext {
 	priv, pub, err := crypto.GenerateKeyPair(crypto.Ed25519)
 	assert.NoError(t, err)
 
-	rootDID, rootTrust := makeRootTrustContext(t)
-	actorDID, actorTrust := makeRootTrustContext(t)
-	actorCap := makeCapabilityContext(t, actorDID, rootDID, actorTrust, rootTrust)
+	rootDID, rootTrust := MakeRootTrustContext(t)
+	actorDID, actorTrust := MakeRootTrustContext(t)
+	actorCap := MakeCapabilityContext(t, actorDID, rootDID, actorTrust, rootTrust)
 
 	sc, err := NewBasicSecurityContext(pub, priv, actorCap)
 	assert.NoError(t, err)
