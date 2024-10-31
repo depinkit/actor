@@ -14,6 +14,7 @@ import (
 	"time"
 
 	backgroundtasks "gitlab.com/nunet/device-management-service/internal/background_tasks"
+	"gitlab.com/nunet/device-management-service/observability"
 
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
@@ -24,6 +25,9 @@ import (
 )
 
 func TestNew(t *testing.T) {
+	// Set observability to no-op mode for this test
+	observability.SetNoOpMode(true)
+
 	t.Parallel()
 
 	cases := map[string]struct {
