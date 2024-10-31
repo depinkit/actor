@@ -32,6 +32,22 @@ func (h *Handle) String() string {
 	return fmt.Sprintf("%s[%s]@%s", idStr, h.DID, h.Address)
 }
 
+func (h Handle) Equal(other Handle) bool {
+	if !h.ID.Equal(other.ID) {
+		return false
+	}
+	if !h.DID.Equal(other.DID) {
+		return false
+	}
+	if h.Address.HostID != other.Address.HostID {
+		return false
+	}
+	if h.Address.InboxAddress != other.Address.InboxAddress {
+		return false
+	}
+	return true
+}
+
 func HandleFromString(_ string) (Handle, error) {
 	// TODO
 	return Handle{}, ErrTODO
