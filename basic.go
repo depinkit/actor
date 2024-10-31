@@ -313,6 +313,11 @@ func (a *BasicActor) handleBroadcast(data []byte) {
 		return
 	}
 
+	// don't receive message from self
+	if msg.From.Equal(a.Handle()) {
+		return
+	}
+
 	if err := a.Receive(msg); err != nil {
 		log.Warnf("error receiving broadcast message: %s", err)
 	}
