@@ -11,6 +11,9 @@ package actor
 import (
 	"fmt"
 
+	"github.com/libp2p/go-libp2p/core/peer"
+
+	"gitlab.com/nunet/device-management-service/lib/crypto"
 	"gitlab.com/nunet/device-management-service/lib/did"
 )
 
@@ -45,4 +48,70 @@ func (a *Address) String() string {
 func AddressFromString(_ string) (Address, error) {
 	// TODO
 	return Address{}, ErrTODO
+}
+
+func HandleFromPeerID(dest string) (Handle, error) {
+	peerID, err := peer.Decode(dest)
+	if err != nil {
+		return Handle{}, err
+	}
+
+	pubk, err := peerID.ExtractPublicKey()
+	if err != nil {
+		return Handle{}, err
+	}
+
+	if !crypto.AllowedKey(int(pubk.Type())) {
+		return Handle{}, fmt.Errorf("unexpected key type: %d", pubk.Type())
+	}
+
+	actorID, err := crypto.IDFromPublicKey(pubk)
+	if err != nil {
+		return Handle{}, err
+	}
+
+	actorDID := did.FromPublicKey(pubk)
+	handle := Handle{
+		ID:  actorID,
+		DID: actorDID,
+		Address: Address{
+			HostID:       peerID.String(),
+			InboxAddress: "root",
+		},
+	}
+
+	return handle, nil
+}
+
+func HandleFromDID(dest string) (Handle, error) {
+	actorDID, err := did.FromString(dest)
+	if err != nil {
+		return Handle{}, err
+	}
+
+	pubk, err := did.PublicKeyFromDID(actorDID)
+	if err != nil {
+		return Handle{}, err
+	}
+
+	actorID, err := crypto.IDFromPublicKey(pubk)
+	if err != nil {
+		return Handle{}, err
+	}
+
+	peerID, err := peer.IDFromPublicKey(pubk)
+	if err != nil {
+		return Handle{}, err
+	}
+
+	handle := Handle{
+		ID:  actorID,
+		DID: actorDID,
+		Address: Address{
+			HostID:       peerID.String(),
+			InboxAddress: "root",
+		},
+	}
+
+	return handle, nil
 }
