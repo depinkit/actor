@@ -101,6 +101,9 @@ type SecurityContext interface {
 	// the envelope is modified in place
 	Provide(msg *Envelope, invoke []Capability, delegate []Capability) error
 
+	// Consume ingests the provided capability tokens
+	Consume(origin did.DID, tokens ucan.TokenList) error
+
 	// Require verifies the envelope and checks the capability tokens
 	// for a broadcast topic
 	RequireBroadcast(msg Envelope, topic string, broadcast []Capability) error

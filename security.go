@@ -9,11 +9,13 @@
 package actor
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
 	"gitlab.com/nunet/device-management-service/lib/crypto"
+	"gitlab.com/nunet/device-management-service/lib/did"
 	"gitlab.com/nunet/device-management-service/lib/ucan"
 )
 
@@ -186,4 +188,12 @@ func (s *BasicSecurityContext) Sign(msg *Envelope) error {
 
 func (s *BasicSecurityContext) Discard(msg Envelope) {
 	s.cap.Discard(msg.Capability)
+}
+
+func (s *BasicSecurityContext) Consume(origin did.DID, tokens ucan.TokenList) error {
+	caps, err := json.Marshal(tokens)
+	if err != nil {
+		return fmt.Errorf("error marshaling tokens: %w", err)
+	}
+	return s.cap.Consume(origin, caps)
 }
