@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	backgroundtasks "gitlab.com/nunet/device-management-service/internal/background_tasks"
+	"gitlab.com/nunet/device-management-service/internal/config"
 	"gitlab.com/nunet/device-management-service/lib/crypto"
 	"gitlab.com/nunet/device-management-service/lib/did"
 	"gitlab.com/nunet/device-management-service/lib/ucan"
@@ -169,7 +170,7 @@ func NewLibp2pNetwork(t *testing.T, bootstrap []multiaddr.Multiaddr) ([]multiadd
 		},
 	}, afero.NewMemMapFs())
 	assert.NoError(t, err)
-	err = net.Init()
+	err = net.Init(&config.Config{})
 	assert.NoError(t, err)
 
 	err = net.Start()
