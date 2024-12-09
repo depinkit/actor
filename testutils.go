@@ -44,10 +44,10 @@ func MakeTrustContext(t *testing.T, privk crypto.PrivKey) (did.DID, did.TrustCon
 }
 
 func MakeCapabilityContext(t *testing.T, actorDID, rootDID did.DID, trust, root did.TrustContext) ucan.CapabilityContext {
-	actorCap, err := ucan.NewCapabilityContext(trust, actorDID, nil, ucan.TokenList{}, ucan.TokenList{})
+	actorCap, err := ucan.NewCapabilityContext(trust, actorDID, nil, ucan.TokenList{}, ucan.TokenList{}, ucan.TokenList{})
 	require.NoError(t, err)
 
-	rootCap, err := ucan.NewCapabilityContext(root, rootDID, nil, ucan.TokenList{}, ucan.TokenList{})
+	rootCap, err := ucan.NewCapabilityContext(root, rootDID, nil, ucan.TokenList{}, ucan.TokenList{}, ucan.TokenList{})
 	require.NoError(t, err)
 
 	tokens, err := rootCap.Grant(
@@ -61,7 +61,7 @@ func MakeCapabilityContext(t *testing.T, actorDID, rootDID did.DID, trust, root 
 	)
 	require.NoError(t, err)
 
-	err = actorCap.AddRoots([]did.DID{rootDID}, ucan.TokenList{}, tokens)
+	err = actorCap.AddRoots([]did.DID{rootDID}, ucan.TokenList{}, tokens, ucan.TokenList{})
 	require.NoError(t, err)
 
 	return actorCap
@@ -72,7 +72,7 @@ func MakeExpiry(d time.Duration) uint64 {
 }
 
 func AllowReciprocal(t *testing.T, actorCap ucan.CapabilityContext, rootTrust did.TrustContext, rootDID, otherRootDID did.DID, cap string) {
-	rootCap, err := ucan.NewCapabilityContext(rootTrust, rootDID, nil, ucan.TokenList{}, ucan.TokenList{})
+	rootCap, err := ucan.NewCapabilityContext(rootTrust, rootDID, nil, ucan.TokenList{}, ucan.TokenList{}, ucan.TokenList{})
 	require.NoError(t, err)
 
 	tokens, err := rootCap.Grant(
@@ -86,14 +86,14 @@ func AllowReciprocal(t *testing.T, actorCap ucan.CapabilityContext, rootTrust di
 	)
 	require.NoError(t, err)
 
-	err = actorCap.AddRoots(nil, tokens, ucan.TokenList{})
+	err = actorCap.AddRoots(nil, tokens, ucan.TokenList{}, ucan.TokenList{})
 	require.NoError(t, err)
 }
 
 func AllowBroadcast(t *testing.T, actor1, actor2 ucan.CapabilityContext, root1, root2 did.TrustContext, root1DID, root2DID did.DID, topic string, actorCap ...Capability) {
-	root1Cap, err := ucan.NewCapabilityContext(root1, root1DID, nil, ucan.TokenList{}, ucan.TokenList{})
+	root1Cap, err := ucan.NewCapabilityContext(root1, root1DID, nil, ucan.TokenList{}, ucan.TokenList{}, ucan.TokenList{})
 	require.NoError(t, err)
-	root2Cap, err := ucan.NewCapabilityContext(root2, root2DID, nil, ucan.TokenList{}, ucan.TokenList{})
+	root2Cap, err := ucan.NewCapabilityContext(root2, root2DID, nil, ucan.TokenList{}, ucan.TokenList{}, ucan.TokenList{})
 	require.NoError(t, err)
 
 	tokens, err := root1Cap.Grant(
@@ -107,7 +107,7 @@ func AllowBroadcast(t *testing.T, actor1, actor2 ucan.CapabilityContext, root1, 
 	)
 	require.NoError(t, err, "granting broadcast capability")
 
-	err = actor1.AddRoots(nil, ucan.TokenList{}, tokens)
+	err = actor1.AddRoots(nil, ucan.TokenList{}, tokens, ucan.TokenList{})
 	require.NoError(t, err, "add roots")
 
 	tokens, err = root2Cap.Grant(
@@ -121,7 +121,7 @@ func AllowBroadcast(t *testing.T, actor1, actor2 ucan.CapabilityContext, root1, 
 	)
 	require.NoError(t, err, "grant broadcast capability")
 
-	err = actor2.AddRoots(nil, tokens, ucan.TokenList{})
+	err = actor2.AddRoots(nil, tokens, ucan.TokenList{}, ucan.TokenList{})
 	require.NoError(t, err, "add roots")
 }
 
