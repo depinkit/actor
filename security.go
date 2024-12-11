@@ -63,6 +63,10 @@ func (s *BasicSecurityContext) Nonce() uint64 {
 	return nonce
 }
 
+func (s *BasicSecurityContext) PrivKey() crypto.PrivKey {
+	return s.privk
+}
+
 func (s *BasicSecurityContext) Require(msg Envelope, cap []Capability) error {
 	// if we are sending to self, nothing to do, signature is alredady verified
 	if s.id.Equal(msg.From.ID) && s.id.Equal(msg.To.ID) {

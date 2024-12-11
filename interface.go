@@ -89,6 +89,7 @@ type SecurityContext interface {
 	ID() ID
 	DID() DID
 	Nonce() uint64
+	PrivKey() crypto.PrivKey
 
 	// Require checks the capability token(s).
 	// It succeeds if and only if
