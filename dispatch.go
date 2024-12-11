@@ -32,7 +32,7 @@ type Dispatch struct {
 	q         chan Envelope // incoming message queue
 	vq        chan Envelope // verified message queue
 	behaviors map[string]*BehaviorState
-	started   bool
+	running   bool
 
 	options DispatchOptions
 }
@@ -69,11 +69,8 @@ func WithRateLimiter(limiter RateLimiter) DispatchOption {
 }
 
 func NewDispatch(sctx SecurityContext, opt ...DispatchOption) *Dispatch {
-	ctx, cancel := context.WithCancel(context.Background())
 	k := &Dispatch{
 		sctx:      sctx,
-		ctx:       ctx,
-		close:     cancel,
 		q:         make(chan Envelope),
 		vq:        make(chan Envelope),
 		behaviors: make(map[string]*BehaviorState),
@@ -95,13 +92,24 @@ func (k *Dispatch) Start() {
 	k.mx.Lock()
 	defer k.mx.Unlock()
 
-	if !k.started {
+	if !k.running {
+		k.ctx, k.close = context.WithCancel(context.Background())
 		for i := 0; i < k.options.Workers; i++ {
 			go k.recv()
 		}
 		go k.dispatch()
 		go k.gc()
-		k.started = true
+		k.running = true
+	}
+}
+
+func (k *Dispatch) Stop() {
+	k.mx.Lock()
+	defer k.mx.Unlock()
+
+	if k.running {
+		k.close()
+		k.running = false
 	}
 }
 

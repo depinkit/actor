@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	backgroundtasks "gitlab.com/nunet/device-management-service/internal/background_tasks"
 	"gitlab.com/nunet/device-management-service/observability"
 
 	"github.com/multiformats/go-multiaddr"
@@ -31,31 +30,26 @@ func TestNew(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]struct {
-		scheduler *backgroundtasks.Scheduler
-		net       network.Network
-		security  *BasicSecurityContext
-		params    BasicActorParams
-		self      Handle
-		expErr    string
+		net        network.Network
+		security   *BasicSecurityContext
+		supervisor Handle
+		params     BasicActorParams
+		self       Handle
+		expErr     string
 	}{
-		"nil scheduler": {
-			expErr: "scheduler is nil",
-		},
 		"nil network": {
-			scheduler: &backgroundtasks.Scheduler{},
-			expErr:    "network is nil",
+			expErr: "network is nil",
 		},
 		"nil security": {
-			scheduler: &backgroundtasks.Scheduler{},
-			net:       &libp2p.Libp2p{},
-			expErr:    "security is nil",
+			net:    &libp2p.Libp2p{},
+			expErr: "security is nil",
 		},
 		"success": {
-			scheduler: &backgroundtasks.Scheduler{},
-			net:       &libp2p.Libp2p{},
-			security:  &BasicSecurityContext{},
-			params:    BasicActorParams{},
-			self:      Handle{},
+			net:        &libp2p.Libp2p{},
+			security:   &BasicSecurityContext{},
+			supervisor: Handle{},
+			params:     BasicActorParams{},
+			self:       Handle{},
 		},
 	}
 
@@ -63,7 +57,7 @@ func TestNew(t *testing.T) {
 		tt := tt
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			act, err := New(tt.scheduler, tt.net, tt.security, NoRateLimiter{}, tt.params, tt.self)
+			act, err := New(tt.supervisor, tt.net, tt.security, NoRateLimiter{}, tt.params, tt.self)
 			if tt.expErr != "" {
 				assert.Nil(t, act)
 				assert.EqualError(t, err, tt.expErr)
@@ -230,4 +224,61 @@ func TestActorBroadcast(t *testing.T) {
 
 	result := <-mch
 	assert.Equal(t, string(result.Message), "{\"Name\":\"random name\",\"Type\":\"x\"}")
+}
+
+func TestActorHealthcheck(t *testing.T) {
+	addrs1, priv1, peer1 := NewLibp2pNetwork(t, []multiaddr.Multiaddr{})
+	_, priv2, peer2 := NewLibp2pNetwork(t, addrs1)
+
+	res, err := peer2.Ping(context.Background(), peer1.Host.ID().String(), time.Second)
+	assert.NoError(t, err)
+	assert.True(t, res.Success)
+
+	time.Sleep(500 * time.Millisecond)
+	assert.Equal(t, 2, peer2.Host.Peerstore().Peers().Len())
+	assert.Equal(t, 2, peer1.Host.Peerstore().Peers().Len())
+
+	// create trust and capability contexts that allow the two separately rooted
+	// actors to interact
+	root1DID, root1Trust := MakeRootTrustContext(t)
+	root2DID, root2Trust := MakeRootTrustContext(t)
+	actor1DID, actor1Trust := MakeTrustContext(t, priv1)
+	actor2DID, actor2Trust := MakeTrustContext(t, priv2)
+	actor1Cap := MakeCapabilityContext(t, actor1DID, root1DID, actor1Trust, root1Trust)
+	actor2Cap := MakeCapabilityContext(t, actor2DID, root2DID, actor2Trust, root2Trust)
+	AllowReciprocal(t, actor1Cap, root1Trust, root1DID, root2DID, "/dms")
+
+	// create actors
+	actor1 := CreateActor(t, peer1, actor1Cap)
+	err = actor1.Start()
+	assert.NoError(t, err)
+	actor2 := CreateActor(t, peer2, actor2Cap)
+	err = actor2.Start()
+	assert.NoError(t, err)
+
+	msg, err := Message(
+		actor2.self,
+		actor1.self,
+		HealthCheckBehavior,
+		nil,
+	)
+	require.NoError(t, err)
+
+	err = actor1.AddBehavior(HealthCheckBehavior, func(msg Envelope) {
+		defer msg.Discard()
+		reply, err := ReplyTo(msg, nil)
+		assert.NoError(t, err)
+		err = actor1.Send(reply)
+		assert.NoError(t, err)
+	})
+	require.NoError(t, err)
+
+	replyCh, err := actor2.Invoke(msg)
+	require.NoError(t, err)
+
+	select {
+	case <-replyCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out")
+	}
 }

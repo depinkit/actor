@@ -30,7 +30,7 @@ func TestDispatchStart(t *testing.T) {
 	sc := generateSecurityContext(t)
 	d := NewDispatch(sc, WithDispatchWorkers(3))
 	d.Start()
-	assert.True(t, d.started)
+	assert.True(t, d.running)
 }
 
 func TestDispatchAddBehavior(t *testing.T) {

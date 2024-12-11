@@ -14,8 +14,8 @@ import (
 )
 
 type Info struct {
-	Addr     *Handle
-	Parent   *Handle
+	Addr     Handle
+	Parent   Handle
 	Children []Handle
 }
 
@@ -24,7 +24,7 @@ type Registry interface {
 	Add(a Handle, parent Handle, children []Handle) error
 	Get(a Handle) (Info, bool)
 	SetParent(a Handle, parent Handle) error
-	GetParent(a Handle) (*Handle, bool)
+	GetParent(a Handle) (Handle, bool)
 }
 
 type registry struct {
@@ -62,8 +62,8 @@ func (r *registry) Add(a Handle, parent Handle, children []Handle) error {
 	}
 
 	r.actors[a.Address.InboxAddress] = Info{
-		Addr:     &a,
-		Parent:   &parent,
+		Addr:     a,
+		Parent:   parent,
 		Children: children,
 	}
 
@@ -87,18 +87,18 @@ func (r *registry) SetParent(a Handle, parent Handle) error {
 		return errors.New("actor not found")
 	}
 
-	info.Parent = &parent
+	info.Parent = parent
 	r.actors[a.Address.InboxAddress] = info
 	return nil
 }
 
-func (r *registry) GetParent(a Handle) (*Handle, bool) {
+func (r *registry) GetParent(a Handle) (Handle, bool) {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
 	info, ok := r.actors[a.Address.InboxAddress]
 	if !ok {
-		return nil, false
+		return Handle{}, false
 	}
 
 	return info.Parent, true

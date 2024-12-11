@@ -15,13 +15,15 @@ import (
 )
 
 const (
-	heartbeatBehavior     = "/dms/actor/heartbeat"
 	defaultMessageTimeout = 30 * time.Second
 )
 
 var signaturePrefix = []byte("dms:msg:")
 
-type HeartbeatMessage struct{}
+type HealthCheckResponse struct {
+	OK    bool
+	Error string
+}
 
 // Message constructs a new message envelope and applies the options
 func Message(src Handle, dest Handle, behavior string, payload interface{}, opt ...MessageOption) (Envelope, error) {
@@ -96,6 +98,14 @@ func WithMessageTimeout(timeo time.Duration) MessageOption {
 func WithMessageExpiry(expiry uint64) MessageOption {
 	return func(msg *Envelope) error {
 		msg.Options.Expire = expiry
+		return nil
+	}
+}
+
+// WithMessageExpiry TODO
+func WithMessageExpiryTime(t time.Time) MessageOption {
+	return func(msg *Envelope) error {
+		msg.Options.Expire = uint64(t.UnixNano())
 		return nil
 	}
 }

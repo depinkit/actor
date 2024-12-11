@@ -145,7 +145,7 @@ func CreateActor(t *testing.T, peer *libp2p.Libp2p, cap ucan.CapabilityContext) 
 			InboxAddress: uuid.String(),
 		},
 	}
-	actor, err := New(backgroundtasks.NewScheduler(1), peer, sctx, NewRateLimiter(DefaultRateLimiterConfig()), params, handle)
+	actor, err := New(Handle{}, peer, sctx, NewRateLimiter(DefaultRateLimiterConfig()), params, handle)
 	assert.NoError(t, err)
 	assert.NotNil(t, actor)
 

@@ -14,19 +14,30 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
-	bt "gitlab.com/nunet/device-management-service/internal/background_tasks"
+	"github.com/google/uuid"
+	"gitlab.com/nunet/device-management-service/lib/crypto"
+	"gitlab.com/nunet/device-management-service/lib/did"
+	"gitlab.com/nunet/device-management-service/lib/ucan"
 	"gitlab.com/nunet/device-management-service/network"
 	"gitlab.com/nunet/device-management-service/types"
 )
 
+const (
+	HealthCheckBehavior = "/dms/actor/healthcheck"
+
+	HealthCheckInterval      = 30 * time.Second
+	HealthCheckGrantDuration = 2 * time.Hour
+)
+
 type BasicActor struct {
-	dispatch  *Dispatch
-	scheduler *bt.Scheduler
-	registry  *registry
-	network   network.Network
-	security  SecurityContext
-	limiter   RateLimiter
+	dispatch   *Dispatch
+	registry   Registry
+	network    network.Network
+	security   SecurityContext
+	supervisor Handle
+	limiter    RateLimiter
 
 	params BasicActorParams
 	self   Handle
@@ -40,11 +51,15 @@ type BasicActorParams struct{}
 var _ Actor = (*BasicActor)(nil)
 
 // New creates a new basic actor.
-func New(scheduler *bt.Scheduler, net network.Network, security *BasicSecurityContext, limiter RateLimiter, params BasicActorParams, self Handle, opt ...DispatchOption) (*BasicActor, error) {
-	if scheduler == nil {
-		return nil, errors.New("scheduler is nil")
-	}
-
+func New(
+	supervisor Handle,
+	net network.Network,
+	security *BasicSecurityContext,
+	limiter RateLimiter,
+	params BasicActorParams,
+	self Handle,
+	opt ...DispatchOption,
+) (*BasicActor, error) {
 	if net == nil {
 		return nil, errors.New("network is nil")
 	}
@@ -59,17 +74,55 @@ func New(scheduler *bt.Scheduler, net network.Network, security *BasicSecurityCo
 
 	actor := &BasicActor{
 		dispatch:      dispatch,
-		scheduler:     scheduler,
 		registry:      newRegistry(),
 		network:       net,
 		security:      security,
 		limiter:       limiter,
+		supervisor:    supervisor,
 		params:        params,
 		self:          self,
 		subscriptions: make(map[string]uint64),
 	}
 
+	if err := actor.grantSupervisorCapabilities(supervisor); err != nil {
+		return nil, fmt.Errorf("granting supervisor capabilities: %w", err)
+	}
+
 	return actor, nil
+}
+
+func (a *BasicActor) grantSupervisorCapabilities(supervisor Handle) error {
+	if supervisor.Empty() || supervisor.ID.Equal(a.self.ID) {
+		return nil
+	}
+
+	actorDID, err := did.FromID(a.self.ID)
+	if err != nil {
+		return fmt.Errorf("actor did: %w", err)
+	}
+
+	expiry := time.Now().Add(HealthCheckGrantDuration)
+	actorCap := a.security.Capability()
+	tokens, err := actorCap.Grant(
+		ucan.Delegate,
+		supervisor.DID,
+		actorDID,
+		nil,
+		uint64(expiry.UnixNano()),
+		0,
+		[]ucan.Capability{
+			ucan.Capability(HealthCheckBehavior),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("error granting healthcheck capability to supervisor: %w", err)
+	}
+
+	if err := actorCap.AddRoots(nil, tokens, ucan.TokenList{}, ucan.TokenList{}); err != nil {
+		return fmt.Errorf("error adding supervisor anchor: %w", err)
+	}
+
+	return nil
 }
 
 func (a *BasicActor) Start() error {
@@ -83,7 +136,19 @@ func (a *BasicActor) Start() error {
 
 	// and start the internal goroutines
 	a.dispatch.Start()
-	a.scheduler.Start()
+
+	// XXX: is this clean?
+	go func() {
+		select {
+		case <-time.After(HealthCheckGrantDuration):
+			if err := a.grantSupervisorCapabilities(a.supervisor); err != nil {
+				log.Errorf("error granting supervisor capabilities: %s", err)
+			}
+		case <-a.Context().Done():
+			return
+		}
+	}()
+
 	return nil
 }
 
@@ -209,6 +274,54 @@ func (a *BasicActor) Invoke(msg Envelope) (<-chan Envelope, error) {
 	return result, nil
 }
 
+func (a *BasicActor) CreateChild(
+	super Handle,
+	params BasicActorParams,
+) (*BasicActor, error) {
+	id, err := uuid.NewUUID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a child actor: %w", err)
+	}
+	privk, pubk, err := crypto.GenerateKeyPair(crypto.Ed25519)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a child actor: %w", err)
+	}
+
+	sctx, err := NewBasicSecurityContext(pubk, privk, a.security.Capability())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a child actor: %w", err)
+	}
+
+	child, err := New(
+		super,
+		a.network,
+		sctx,
+		a.limiter,
+		params,
+		Handle{
+			ID:  sctx.id,
+			DID: sctx.DID(),
+			Address: Address{
+				HostID:       a.self.Address.HostID,
+				InboxAddress: id.String(),
+			},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a child actor: %w", err)
+	}
+
+	if err := a.registry.Add(child.Handle(), a.self, nil); err != nil {
+		return nil, fmt.Errorf("failed to add child to actor registry: %w", err)
+	}
+
+	if err := child.Start(); err != nil {
+		return nil, fmt.Errorf("starting child actor: %w", err)
+	}
+
+	return child, nil
+}
+
 func (a *BasicActor) Publish(msg Envelope) error {
 	if !msg.IsBroadcast() {
 		return ErrInvalidMessage
@@ -324,7 +437,7 @@ func (a *BasicActor) handleBroadcast(data []byte) {
 }
 
 func (a *BasicActor) Stop() error {
-	a.dispatch.close()
+	a.dispatch.Stop()
 	for topic, subID := range a.subscriptions {
 		err := a.network.Unsubscribe(topic, subID)
 		if err != nil {

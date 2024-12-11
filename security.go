@@ -191,3 +191,7 @@ func (s *BasicSecurityContext) Sign(msg *Envelope) error {
 func (s *BasicSecurityContext) Discard(msg Envelope) {
 	s.cap.Discard(msg.Capability)
 }
+
+func (s *BasicSecurityContext) Capability() ucan.CapabilityContext {
+	return s.cap
+}

@@ -75,6 +75,8 @@ type Actor interface {
 	Start() error
 	Stop() error
 
+	CreateChild(super Handle, params BasicActorParams) (*BasicActor, error)
+
 	Limiter() RateLimiter
 }
 
@@ -117,6 +119,9 @@ type SecurityContext interface {
 
 	// Disparcrd discards unwanted tokens from a consumed envelope
 	Discard(msg Envelope)
+
+	// Return the capability context
+	Capability() ucan.CapabilityContext
 }
 
 // RateLimiter implements a stateful resource access limiter
@@ -140,9 +145,10 @@ type RateLimiterConfig struct {
 	TopicLimit            map[string]int
 }
 
-type Behavior func(msg Envelope)
-
-type MessageOption func(msg *Envelope) error
+type (
+	Behavior      func(msg Envelope)
+	MessageOption func(msg *Envelope) error
+)
 
 type BehaviorOption func(opt *BehaviorOptions) error
 
