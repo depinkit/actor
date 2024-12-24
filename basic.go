@@ -444,6 +444,8 @@ func (a *BasicActor) Stop() error {
 			log.Debugf("error unsubscribing from %s: %s", topic, err)
 		}
 	}
+
+	a.network.UnregisterMessageHandler(fmt.Sprintf("actor/%s/messages/0.0.1", a.self.Address.InboxAddress))
 	return nil
 }
 
