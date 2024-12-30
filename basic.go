@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"gitlab.com/nunet/device-management-service/lib/crypto"
 	"gitlab.com/nunet/device-management-service/lib/did"
 	"gitlab.com/nunet/device-management-service/lib/ucan"
@@ -152,7 +153,7 @@ func (a *BasicActor) Start() error {
 	return nil
 }
 
-func (a *BasicActor) handleMessage(data []byte) {
+func (a *BasicActor) handleMessage(data []byte, srcPeerID peer.ID) {
 	var msg Envelope
 	if err := json.Unmarshal(data, &msg); err != nil {
 		log.Debugf("error unmarshaling message: %s", err)
@@ -161,6 +162,11 @@ func (a *BasicActor) handleMessage(data []byte) {
 
 	if !a.self.ID.Equal(msg.To.ID) {
 		log.Warnf("message is not for ourselves: %s %s", a.self.ID, msg.To.ID)
+		return
+	}
+
+	if msg.From.Address.HostID != srcPeerID.String() {
+		log.Warnf("message from %s not matching peer id %s", msg.From.Address.HostID, srcPeerID)
 		return
 	}
 
