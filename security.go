@@ -29,10 +29,10 @@ type BasicSecurityContext struct {
 
 var _ SecurityContext = (*BasicSecurityContext)(nil)
 
-func NewBasicSecurityContext(pubk crypto.PubKey, privk crypto.PrivKey, cap ucan.CapabilityContext) (*BasicSecurityContext, error) {
+func NewBasicSecurityContext(pubk crypto.PubKey, privk crypto.PrivKey, capCxt ucan.CapabilityContext) (*BasicSecurityContext, error) {
 	sctx := &BasicSecurityContext{
 		privk: privk,
-		cap:   cap,
+		cap:   capCxt,
 		nonce: uint64(time.Now().UnixNano()),
 	}
 
@@ -67,7 +67,7 @@ func (s *BasicSecurityContext) PrivKey() crypto.PrivKey {
 	return s.privk
 }
 
-func (s *BasicSecurityContext) Require(msg Envelope, cap []Capability) error {
+func (s *BasicSecurityContext) Require(msg Envelope, invoke []Capability) error {
 	// if we are sending to self, nothing to do, signature is alredady verified
 	if s.id.Equal(msg.From.ID) && s.id.Equal(msg.To.ID) {
 		return nil
@@ -79,7 +79,7 @@ func (s *BasicSecurityContext) Require(msg Envelope, cap []Capability) error {
 	}
 
 	// check if any of the requested invocation capabilities are delegated
-	if err := s.cap.Require(s.DID(), msg.From.ID, s.id, cap); err != nil {
+	if err := s.cap.Require(s.DID(), msg.From.ID, s.id, invoke); err != nil {
 		s.cap.Discard(msg.Capability)
 		return fmt.Errorf("requiring capabilities: %w", err)
 	}

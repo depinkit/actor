@@ -71,7 +71,7 @@ func MakeExpiry(d time.Duration) uint64 {
 	return uint64(time.Now().Add(d).UnixNano())
 }
 
-func AllowReciprocal(t *testing.T, actorCap ucan.CapabilityContext, rootTrust did.TrustContext, rootDID, otherRootDID did.DID, cap string) {
+func AllowReciprocal(t *testing.T, actorCap ucan.CapabilityContext, rootTrust did.TrustContext, rootDID, otherRootDID did.DID, capability string) {
 	rootCap, err := ucan.NewCapabilityContext(rootTrust, rootDID, nil, ucan.TokenList{}, ucan.TokenList{}, ucan.TokenList{})
 	require.NoError(t, err)
 
@@ -82,7 +82,7 @@ func AllowReciprocal(t *testing.T, actorCap ucan.CapabilityContext, rootTrust di
 		nil,
 		MakeExpiry(time.Hour),
 		0,
-		[]ucan.Capability{ucan.Capability(cap)},
+		[]ucan.Capability{ucan.Capability(capability)},
 	)
 	require.NoError(t, err)
 
@@ -125,11 +125,11 @@ func AllowBroadcast(t *testing.T, actor1, actor2 ucan.CapabilityContext, root1, 
 	require.NoError(t, err, "add roots")
 }
 
-func CreateActor(t *testing.T, peer *libp2p.Libp2p, cap ucan.CapabilityContext) *BasicActor {
+func CreateActor(t *testing.T, peer *libp2p.Libp2p, capCxt ucan.CapabilityContext) *BasicActor {
 	privk, pubk, err := crypto.GenerateKeyPair(crypto.Ed25519)
 	require.NoError(t, err)
 
-	sctx, err := NewBasicSecurityContext(pubk, privk, cap)
+	sctx, err := NewBasicSecurityContext(pubk, privk, capCxt)
 	assert.NoError(t, err)
 
 	params := BasicActorParams{}
@@ -139,7 +139,7 @@ func CreateActor(t *testing.T, peer *libp2p.Libp2p, cap ucan.CapabilityContext) 
 
 	handle := Handle{
 		ID:  sctx.id,
-		DID: cap.DID(),
+		DID: capCxt.DID(),
 		Address: Address{
 			HostID:       peer.Host.ID().String(),
 			InboxAddress: uuid.String(),
