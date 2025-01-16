@@ -125,7 +125,7 @@ func AllowBroadcast(t *testing.T, actor1, actor2 ucan.CapabilityContext, root1, 
 	require.NoError(t, err, "add roots")
 }
 
-func CreateActor(t *testing.T, peer *libp2p.Libp2p, capCxt ucan.CapabilityContext) *BasicActor {
+func CreateActor(t *testing.T, peer network.Network, capCxt ucan.CapabilityContext) *BasicActor {
 	privk, pubk, err := crypto.GenerateKeyPair(crypto.Ed25519)
 	require.NoError(t, err)
 
@@ -141,7 +141,7 @@ func CreateActor(t *testing.T, peer *libp2p.Libp2p, capCxt ucan.CapabilityContex
 		ID:  sctx.id,
 		DID: capCxt.DID(),
 		Address: Address{
-			HostID:       peer.Host.ID().String(),
+			HostID:       peer.GetHostID().String(),
 			InboxAddress: uuid.String(),
 		},
 	}
