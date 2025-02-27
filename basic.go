@@ -16,8 +16,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/libp2p/go-libp2p/core/peer"
+
 	"gitlab.com/nunet/device-management-service/lib/crypto"
 	"gitlab.com/nunet/device-management-service/lib/did"
 	"gitlab.com/nunet/device-management-service/lib/ucan"
@@ -39,6 +39,9 @@ type BasicActor struct {
 	security   SecurityContext
 	supervisor Handle
 	limiter    RateLimiter
+
+	parent   Handle
+	children map[did.DID]Handle
 
 	params BasicActorParams
 	self   Handle
@@ -83,6 +86,7 @@ func New(
 		params:        params,
 		self:          self,
 		subscriptions: make(map[string]uint64),
+		children:      make(map[did.DID]Handle),
 	}
 
 	if err := actor.grantSupervisorCapabilities(supervisor); err != nil {
@@ -281,19 +285,26 @@ func (a *BasicActor) Invoke(msg Envelope) (<-chan Envelope, error) {
 }
 
 func (a *BasicActor) CreateChild(
+	id string,
 	super Handle,
-	params BasicActorParams,
-) (*BasicActor, error) {
-	id, err := uuid.NewUUID()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create a child actor: %w", err)
-	}
-	privk, pubk, err := crypto.GenerateKeyPair(crypto.Ed25519)
+	opts ...CreateChildOption,
+) (Actor, error) {
+	// Create default options
+	privk, _, err := crypto.GenerateKeyPair(crypto.Ed25519)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a child actor: %w", err)
 	}
 
-	sctx, err := NewBasicSecurityContext(pubk, privk, a.security.Capability())
+	options := &CreateChildOptions{
+		PrivKey: privk,
+	}
+
+	// apply caller's options
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	sctx, err := NewBasicSecurityContext(options.PrivKey.GetPublic(), options.PrivKey, a.security.Capability())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a child actor: %w", err)
 	}
@@ -303,13 +314,13 @@ func (a *BasicActor) CreateChild(
 		a.network,
 		sctx,
 		a.limiter,
-		params,
+		BasicActorParams{},
 		Handle{
 			ID:  sctx.id,
 			DID: sctx.DID(),
 			Address: Address{
 				HostID:       a.self.Address.HostID,
-				InboxAddress: id.String(),
+				InboxAddress: id,
 			},
 		},
 	)
@@ -321,11 +332,30 @@ func (a *BasicActor) CreateChild(
 		return nil, fmt.Errorf("failed to add child to actor registry: %w", err)
 	}
 
-	if err := child.Start(); err != nil {
-		return nil, fmt.Errorf("starting child actor: %w", err)
-	}
+	a.mx.Lock()
+	child.parent = a.Handle()
+	a.children[child.Handle().DID] = child.Handle()
+	a.mx.Unlock()
 
 	return child, nil
+}
+
+// Parent returns the parent actor
+func (a *BasicActor) Parent() Handle {
+	return a.parent
+}
+
+// Children returns the children actors
+func (a *BasicActor) Children() map[did.DID]Handle {
+	a.mx.Lock()
+	defer a.mx.Unlock()
+
+	c := make(map[did.DID]Handle)
+	for did, handle := range a.children {
+		c[did] = handle
+	}
+
+	return c
 }
 
 func (a *BasicActor) Publish(msg Envelope) error {

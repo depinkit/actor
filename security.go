@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"gitlab.com/nunet/device-management-service/lib/crypto"
+	"gitlab.com/nunet/device-management-service/lib/did"
 	"gitlab.com/nunet/device-management-service/lib/ucan"
 )
 
@@ -185,6 +186,30 @@ func (s *BasicSecurityContext) Sign(msg *Envelope) error {
 	}
 
 	msg.Signature = sig
+	return nil
+}
+
+func (s *BasicSecurityContext) Grant(
+	sub, aud did.DID, caps []ucan.Capability, expiry time.Duration,
+) error {
+	tokens, err := s.cap.Grant(
+		ucan.Delegate,
+		sub,
+		aud,
+		[]string{},
+		MakeExpiry(expiry),
+		1,
+		caps,
+	)
+	if err != nil {
+		return fmt.Errorf("create granting token for audience %s caps: %w", aud, err)
+	}
+
+	err = s.cap.AddRoots([]did.DID{}, tokens, ucan.TokenList{}, ucan.TokenList{})
+	if err != nil {
+		return fmt.Errorf("add roots for audience %s: %w", aud, err)
+	}
+
 	return nil
 }
 

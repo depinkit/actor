@@ -10,17 +10,19 @@ package actor
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
-
-	"gitlab.com/nunet/device-management-service/observability"
 
 	"github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"gitlab.com/nunet/device-management-service/lib/did"
+	"gitlab.com/nunet/device-management-service/lib/ucan"
 	"gitlab.com/nunet/device-management-service/network"
 	"gitlab.com/nunet/device-management-service/network/libp2p"
+	"gitlab.com/nunet/device-management-service/observability"
 )
 
 func TestNew(t *testing.T) {
@@ -280,5 +282,200 @@ func TestActorHealthcheck(t *testing.T) {
 	case <-replyCh:
 	case <-time.After(5 * time.Second):
 		t.Fatal("timed out")
+	}
+}
+
+func TestParentChildRelationship(t *testing.T) {
+	// Setup network and actors
+	_, priv1, peer1 := NewLibp2pNetwork(t, []multiaddr.Multiaddr{})
+
+	// Create trust context for parent
+	rootDID, rootTrust := MakeRootTrustContext(t)
+	actorDID, actorTrust := MakeTrustContext(t, priv1)
+	actorCap := MakeCapabilityContext(t, actorDID, rootDID, actorTrust, rootTrust)
+
+	// Create parent actor
+	parent := CreateActor(t, peer1, actorCap)
+	err := parent.Start()
+	require.NoError(t, err)
+
+	// Create child actor
+	childID := "child1"
+	child, err := parent.CreateChild(childID, parent.Handle())
+	require.NoError(t, err)
+
+	err = child.Start()
+	require.NoError(t, err)
+
+	// Test parent-child relationship
+	require.Equal(t, parent.Handle(), child.Parent())
+
+	children := parent.Children()
+	require.Len(t, children, 1)
+	require.Contains(t, children, child.Handle().DID)
+	require.Equal(t, child.Handle(), children[child.Handle().DID])
+
+	// Test that parent can invoke any behavior on child
+	testMessage := "Hello from parent"
+	testBehavior := "/test/arbitrary/behavior"
+	testPayload := struct {
+		Message string
+	}{
+		Message: testMessage,
+	}
+
+	// Add behavior to child
+	receivedChan := make(chan Envelope)
+	err = child.AddBehavior(testBehavior, func(msg Envelope) {
+		defer msg.Discard()
+		receivedChan <- msg
+	})
+	require.NoError(t, err)
+
+	// Parent sends message to child
+	msg, err := Message(
+		parent.Handle(),
+		child.Handle(),
+		testBehavior,
+		testPayload,
+	)
+	require.NoError(t, err)
+
+	err = parent.Send(msg)
+	require.NoError(t, err)
+
+	// Verify message was received by child
+	select {
+	case received := <-receivedChan:
+		var payload struct {
+			Message string
+		}
+		err := json.Unmarshal(received.Message, &payload)
+		require.NoError(t, err)
+		require.Equal(t, testMessage, payload.Message)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for child to receive message")
+	}
+}
+
+// TestChildToChildBehaviorInvocation tests a similar workflow of
+// behavior invoking that we have between the orchestrator and allocations
+func TestChildToChildBehaviorInvocation(t *testing.T) {
+	// Setup networks for both parent actors
+	addrs1, priv1, peer1 := NewLibp2pNetwork(t, []multiaddr.Multiaddr{})
+	_, priv2, peer2 := NewLibp2pNetwork(t, addrs1)
+
+	// Ensure network connectivity
+	res, err := peer2.Ping(context.Background(), peer1.Host.ID().String(), time.Second)
+	require.NoError(t, err)
+	require.True(t, res.Success)
+
+	time.Sleep(500 * time.Millisecond)
+	require.Equal(t, 2, peer2.Host.Peerstore().Peers().Len())
+	require.Equal(t, 2, peer1.Host.Peerstore().Peers().Len())
+
+	// Create trust contexts for both parent actors
+	root1DID, root1Trust := MakeRootTrustContext(t)
+	root2DID, root2Trust := MakeRootTrustContext(t)
+	actor1DID, actor1Trust := MakeTrustContext(t, priv1)
+	actor2DID, actor2Trust := MakeTrustContext(t, priv2)
+	actor1Cap := MakeCapabilityContext(t, actor1DID, root1DID, actor1Trust, root1Trust)
+	actor2Cap := MakeCapabilityContext(t, actor2DID, root2DID, actor2Trust, root2Trust)
+
+	// Create parent actors
+	parentA := CreateActor(t, peer1, actor1Cap)
+	err = parentA.Start()
+	require.NoError(t, err)
+
+	parentB := CreateActor(t, peer2, actor2Cap)
+	err = parentB.Start()
+	require.NoError(t, err)
+
+	// Create child actors
+	orchestrator, err := parentA.CreateChild("orchestrator", parentA.Handle())
+	require.NoError(t, err)
+	err = orchestrator.Start()
+	require.NoError(t, err)
+
+	allocation, err := parentB.CreateChild("allocation", parentB.Handle())
+	require.NoError(t, err)
+	err = allocation.Start()
+	require.NoError(t, err)
+
+	// Define test behavior and message
+	const testBehavior = "/test/behavior"
+	testMessage := "Hello from Child A"
+	testPayload := struct {
+		Message string
+	}{
+		Message: testMessage,
+	}
+
+	// Add behavior to Child B
+	receivedChan := make(chan Envelope)
+	err = allocation.AddBehavior(testBehavior, func(msg Envelope) {
+		defer msg.Discard()
+		receivedChan <- msg
+	})
+	require.NoError(t, err)
+
+	// TODO: all of them should work
+	// https://gitlab.com/nunet/device-management-service/-/issues/875
+
+	// does NOT work
+	// err = parentB.Security().Grant(
+	// 	orchestrator.Handle().DID, allocation.Handle().DID,
+	// 	[]ucan.Capability{testBehavior}, time.Hour,
+	// )
+
+	// does NOT work
+	// err = parentB.Security().Grant(
+	// 	did.FromID(orchestrator.Handle().ID), allocation.Handle().DID,
+	// 	[]ucan.Capability{testBehavior}, time.Hour,
+	// )
+
+	// does NOT work
+	// err = parentB.Security().Grant(
+	// 	did.FromID(orchestrator.Handle().ID), did.FromID(allocation.Handle().ID),
+	// 	[]ucan.Capability{testBehavior}, time.Hour,
+	// )
+
+	// also:
+	// id, err := did.FromID(orchestrator.Handle().ID)
+	// assert.Equal(t, orchestrator.Handle().DID, id)
+
+	allocDID, err := did.FromID(allocation.Handle().ID)
+	require.NoError(t, err)
+
+	// Grant Child A permission to invoke the behavior on Child B
+	err = allocation.Security().Grant(
+		orchestrator.Handle().DID, allocDID,
+		[]ucan.Capability{testBehavior}, time.Hour,
+	)
+	require.NoError(t, err)
+
+	// Child A sends message to Child B
+	msg, err := Message(
+		orchestrator.Handle(),
+		allocation.Handle(),
+		testBehavior,
+		testPayload,
+	)
+	require.NoError(t, err)
+
+	err = orchestrator.Send(msg)
+	require.NoError(t, err)
+
+	// Verify message was received by Child B
+	select {
+	case received := <-receivedChan:
+		var payload struct {
+			Message string
+		}
+		err := json.Unmarshal(received.Message, &payload)
+		require.NoError(t, err)
+		require.Equal(t, testMessage, payload.Message)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for Child B to receive message")
 	}
 }
