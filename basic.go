@@ -190,6 +190,10 @@ func (a *BasicActor) Handle() Handle {
 	return a.self
 }
 
+func (a *BasicActor) Supervisor() Handle {
+	return a.supervisor
+}
+
 func (a *BasicActor) Security() SecurityContext {
 	return a.security
 }

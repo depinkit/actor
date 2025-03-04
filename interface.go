@@ -62,6 +62,7 @@ type Actor interface {
 	Context() context.Context
 	Handle() Handle
 	Security() SecurityContext
+	Supervisor() Handle
 
 	AddBehavior(behavior string, continuation Behavior, opt ...BehaviorOption) error
 	RemoveBehavior(behavior string)
