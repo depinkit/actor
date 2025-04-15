@@ -12,7 +12,7 @@ and effected with user controlled authorization networks
 ## Secure Interactions in Decentralized Systems
 
 Decentralized systems are distributed systems where there are
-different stake holders and controlling entities who are _mutually
+different stakeholders and controlling entities who are _mutually
 distrustful_. Actors are ideally suited for modeling and programming
 such systems, as they are able to express concurrency, distribution,
 and agency on behalf of their controllers.
@@ -47,7 +47,7 @@ file system structure. The root capability, which implicitly has all
 other capabilities, is `/`. Every other capability extends this path,
 separating the namespace with additional `/`s. A capability is
 narrower than another if it is a subpath in the UNIX sense. So `/A`
-imples `/A/B` and so on, but `/A` does not imply `/B`.
+implies `/A/B` and so on, but `/A` does not imply `/B`.
 
 Behaviors have names that directly map to capabilities. So the
 behavior namespace is also hierarchical, allowing for easy automated
@@ -123,7 +123,7 @@ anchors:
   marginal input trust.  These tokens admit a chain anchored in their
   subject, as long as the capability and depth constraints are
   satisfied.
-- **provide anchors** which are tokens that anchour the actor's output
+- **provide anchors** which are tokens that anchor the actor's output
   invocation and broadcast tokens. These are delegations which the
   actor can use to prove that it has the required capabilities, beside
   self-signing.
@@ -177,7 +177,7 @@ Each `Security Context` is anchored in a process wide
 `CapabilityContext`, which stores anchors of trust and ephemeral tokes
 consumed during actor interactions.
 
-The `CapabilityContext` itself is anchored on a TrustCotext, which
+The `CapabilityContext` itself is anchored on a TrustContext, which
 contains the private key for the root actor and the process itself.
 
 The following diagram depicts this relathionship:
