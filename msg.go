@@ -11,6 +11,7 @@ package actor
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 )
 
@@ -27,9 +28,15 @@ type HealthCheckResponse struct {
 
 // Message constructs a new message envelope and applies the options
 func Message(src Handle, dest Handle, behavior string, payload interface{}, opt ...MessageOption) (Envelope, error) {
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return Envelope{}, fmt.Errorf("marshaling payload: %w", err)
+	var data []byte
+	if payload == nil || (reflect.ValueOf(payload).Kind() == reflect.Ptr && reflect.ValueOf(payload).IsNil()) {
+		data = []byte{}
+	} else {
+		var err error
+		data, err = json.Marshal(payload)
+		if err != nil {
+			return Envelope{}, fmt.Errorf("marshaling payload: %w", err)
+		}
 	}
 
 	msg := Envelope{
