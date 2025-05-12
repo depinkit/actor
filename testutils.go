@@ -28,12 +28,16 @@ import (
 )
 
 func MakeRootTrustContext(t *testing.T) (did.DID, did.TrustContext) {
+	t.Helper()
+
 	privk, _, err := crypto.GenerateKeyPair(crypto.Ed25519)
 	require.NoError(t, err)
 	return MakeTrustContext(t, privk)
 }
 
 func MakeTrustContext(t *testing.T, privk crypto.PrivKey) (did.DID, did.TrustContext) {
+	t.Helper()
+
 	provider, err := did.ProviderFromPrivateKey(privk)
 	require.NoError(t, err, "provider from public key")
 
@@ -44,6 +48,8 @@ func MakeTrustContext(t *testing.T, privk crypto.PrivKey) (did.DID, did.TrustCon
 }
 
 func MakeCapabilityContext(t *testing.T, actorDID, rootDID did.DID, trust, root did.TrustContext) ucan.CapabilityContext {
+	t.Helper()
+
 	actorCap, err := ucan.NewCapabilityContext(trust, actorDID, nil, ucan.TokenList{}, ucan.TokenList{}, ucan.TokenList{})
 	require.NoError(t, err)
 
@@ -72,6 +78,8 @@ func MakeExpiry(d time.Duration) uint64 {
 }
 
 func AllowReciprocal(t *testing.T, actorCap ucan.CapabilityContext, rootTrust did.TrustContext, rootDID, otherRootDID did.DID, capability string) {
+	t.Helper()
+
 	rootCap, err := ucan.NewCapabilityContext(rootTrust, rootDID, nil, ucan.TokenList{}, ucan.TokenList{}, ucan.TokenList{})
 	require.NoError(t, err)
 
@@ -91,6 +99,8 @@ func AllowReciprocal(t *testing.T, actorCap ucan.CapabilityContext, rootTrust di
 }
 
 func AllowBroadcast(t *testing.T, actor1, actor2 ucan.CapabilityContext, root1, root2 did.TrustContext, root1DID, root2DID did.DID, topic string, actorCap ...Capability) {
+	t.Helper()
+
 	root1Cap, err := ucan.NewCapabilityContext(root1, root1DID, nil, ucan.TokenList{}, ucan.TokenList{}, ucan.TokenList{})
 	require.NoError(t, err)
 	root2Cap, err := ucan.NewCapabilityContext(root2, root2DID, nil, ucan.TokenList{}, ucan.TokenList{}, ucan.TokenList{})
@@ -126,6 +136,8 @@ func AllowBroadcast(t *testing.T, actor1, actor2 ucan.CapabilityContext, root1, 
 }
 
 func CreateActor(t *testing.T, peer network.Network, capCxt ucan.CapabilityContext) *BasicActor {
+	t.Helper()
+
 	privk, pubk, err := crypto.GenerateKeyPair(crypto.Ed25519)
 	require.NoError(t, err)
 
@@ -153,6 +165,8 @@ func CreateActor(t *testing.T, peer network.Network, capCxt ucan.CapabilityConte
 }
 
 func NewLibp2pNetwork(t *testing.T, bootstrap []multiaddr.Multiaddr) ([]multiaddr.Multiaddr, crypto.PrivKey, *libp2p.Libp2p) {
+	t.Helper()
+
 	priv, _, err := crypto.GenerateKeyPair(crypto.Ed25519)
 	assert.NoError(t, err)
 	net, err := network.NewNetwork(&types.NetworkConfig{
@@ -182,3 +196,5 @@ func NewLibp2pNetwork(t *testing.T, bootstrap []multiaddr.Multiaddr) ([]multiadd
 	assert.NoError(t, err)
 	return multi, priv, libp2pInstance
 }
+
+func nonZeroID() crypto.ID { return crypto.ID{PublicKey: []byte{1}} }

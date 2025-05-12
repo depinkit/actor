@@ -76,27 +76,7 @@ func HandleFromPeerID(dest string) (Handle, error) {
 	if err != nil {
 		return Handle{}, err
 	}
-
-	if !crypto.AllowedKey(int(pubk.Type())) {
-		return Handle{}, fmt.Errorf("unexpected key type: %d", pubk.Type())
-	}
-
-	actorID, err := crypto.IDFromPublicKey(pubk)
-	if err != nil {
-		return Handle{}, err
-	}
-
-	actorDID := did.FromPublicKey(pubk)
-	handle := Handle{
-		ID:  actorID,
-		DID: actorDID,
-		Address: Address{
-			HostID:       peerID.String(),
-			InboxAddress: "root",
-		},
-	}
-
-	return handle, nil
+	return handleFromPublicKey(pubk)
 }
 
 func HandleFromDID(dest string) (Handle, error) {
@@ -109,25 +89,34 @@ func HandleFromDID(dest string) (Handle, error) {
 	if err != nil {
 		return Handle{}, err
 	}
+	return handleFromPublicKey(pubk)
+}
+
+// handleFromPublicKey converts a verified public key into the canonical Handle.
+// All common logic for HandleFromPeerID / HandleFromDID lives here.
+func handleFromPublicKey(pubk crypto.PubKey) (Handle, error) {
+	if !crypto.AllowedKey(int(pubk.Type())) {
+		return Handle{}, fmt.Errorf("unexpected key type: %d", pubk.Type())
+	}
 
 	actorID, err := crypto.IDFromPublicKey(pubk)
 	if err != nil {
 		return Handle{}, err
 	}
 
+	actorDID := did.FromPublicKey(pubk)
+
 	peerID, err := peer.IDFromPublicKey(pubk)
 	if err != nil {
 		return Handle{}, err
 	}
 
-	handle := Handle{
+	return Handle{
 		ID:  actorID,
 		DID: actorDID,
 		Address: Address{
 			HostID:       peerID.String(),
 			InboxAddress: "root",
 		},
-	}
-
-	return handle, nil
+	}, nil
 }
