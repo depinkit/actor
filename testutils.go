@@ -176,7 +176,7 @@ func NewLibp2pNetwork(t *testing.T, bootstrap []multiaddr.Multiaddr) ([]multiadd
 			BootstrapPeers:          bootstrap,
 			Rendezvous:              "nunet-randevouz",
 			Server:                  false,
-			Scheduler:               backgroundtasks.NewScheduler(1),
+			Scheduler:               backgroundtasks.NewScheduler(1, time.Second),
 			CustomNamespace:         "/nunet-dht-1/",
 			ListenAddress:           []string{"/ip4/127.0.0.1/tcp/0"},
 			PeerCountDiscoveryLimit: 40,
