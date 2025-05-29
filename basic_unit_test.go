@@ -45,7 +45,7 @@ func signedEnv(
 }
 
 // network wrapper that forces SendMessage to fail
-type netSendFail struct{ *network.MemoryNet }
+type netSendFail struct{ *network.MemoryHost }
 
 func (netSendFail) SendMessage(context.Context, string, types.MessageEnvelope, time.Time) error {
 	return fmt.Errorf("net-boom")
@@ -60,7 +60,9 @@ func newTestActor(t *testing.T) *BasicActor {
 	t.Helper()
 
 	sec := NewTestSecurityContext(t)
-	memNet := network.NewMemoryNetwork()
+	memNet, err := network.NewMemoryNetHost()
+	require.NoError(t, err)
+
 	lim := NewRateLimiter(DefaultRateLimiterConfig()) // production limiter
 
 	self := Handle{
@@ -146,13 +148,18 @@ func TestSendNetworkError(t *testing.T) {
 	t.Parallel()
 
 	act := newTestActor(t)
-	act.network = &netSendFail{network.NewMemoryNetwork()}
+	host, err := network.NewMemoryNetHost()
+	require.NoError(t, err)
+
+	memoryHost, ok := host.(*network.MemoryHost)
+	require.True(t, ok)
+	act.network = &netSendFail{memoryHost}
 
 	dst := Handle{ID: nonZeroID(), Address: Address{HostID: "peer"}}
 	bad := signedEnv(t, act.security.(*BasicSecurityContext),
 		act.self.Address.HostID, dst, "/x")
 
-	err := act.Send(bad)
+	err = act.Send(bad)
 	require.ErrorContains(t, err, "net-boom")
 }
 
@@ -210,7 +217,7 @@ func TestSendRemoteSuccessCoversNetworkPath(t *testing.T) {
 
 	act := newTestActor(t)
 
-	memNet, ok := act.network.(*network.MemoryNet) // single-node in-memory network
+	memNet, ok := act.network.(*network.MemoryHost) // single-node in-memory network
 	require.True(t, ok)
 
 	// ── create a second, fully-wired security context to act as the remote peer
