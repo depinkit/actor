@@ -28,9 +28,10 @@ import (
 const (
 	HealthCheckBehavior = "/dms/actor/healthcheck"
 
-	HealthCheckInterval      = 30 * time.Second
 	HealthCheckGrantDuration = 2 * time.Hour
 )
+
+var HealthCheckInterval = 30 * time.Second
 
 type BasicActor struct {
 	dispatch   *Dispatch
