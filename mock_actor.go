@@ -421,7 +421,7 @@ func NewMockActorForTest(t *testing.T, supervisor Handle, substrate *network.Sub
 		DID: mockActorDID,
 		Address: Address{
 			HostID:       peerID.String(),
-			InboxAddress: id.String(),
+			InboxAddress: "root",
 		},
 	}
 
