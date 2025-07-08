@@ -35,9 +35,9 @@ func TestRegistryCore(t *testing.T) {
 	require.NotNil(t, info.Children)
 	require.Empty(t, info.Children, "children slice should start empty")
 
-	// duplicate add
+	// duplicate add (should pass with warnning)
 	err := reg.Add(alice, parentCarol, nil)
-	require.ErrorContains(t, err, "actor already exists")
+	require.NoError(t, err)
 
 	// set-parent success
 	require.NoError(t, reg.SetParent(alice, newParentDave))

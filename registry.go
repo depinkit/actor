@@ -54,7 +54,7 @@ func (r *registry) Add(a Handle, parent Handle, children []Handle) error {
 	defer r.mx.Unlock()
 
 	if _, ok := r.actors[a.Address.InboxAddress]; ok {
-		return errors.New("actor already exists")
+		log.Warnf("overwritting actor %s already registered", a.Address.InboxAddress)
 	}
 
 	if children == nil {
