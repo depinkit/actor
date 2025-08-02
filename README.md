@@ -68,7 +68,7 @@ type Token struct {
 	DMS *DMSToken `json:"dms,omitempty"`
 }
 
-type DMSToken struct {
+type DomainToken struct {
 	Action     Action       `json:"act"`
 	Issuer     did.DID      `json:"iss"`
 	Subject    did.DID      `json:"sub"`
