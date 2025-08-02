@@ -11,10 +11,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/nunet/device-management-service/lib/crypto"
-	"gitlab.com/nunet/device-management-service/lib/did"
-	"gitlab.com/nunet/device-management-service/network"
-	"gitlab.com/nunet/device-management-service/types"
+	"github.com/depinkit/crypto"
+	"github.com/depinkit/did"
+	"github.com/depinkit/network"
 )
 
 // MockActor is a simplified actor implementation that uses virtualNet for communications
@@ -149,8 +148,8 @@ func (a *MockActor) Send(msg Envelope) error {
 	err = a.network.SendMessage(
 		a.Context(),
 		msg.To.Address.HostID,
-		types.MessageEnvelope{
-			Type: types.MessageType(protocol),
+		MessageEnvelope{
+			Type: MessageType(protocol),
 			Data: data,
 		},
 		msg.Expiry(),

@@ -153,7 +153,7 @@ The Go implementation of NuActor lives in the `actor` package of [DMS](https://g
 
 To use it:
 ```go
-import "gitlab.com/nunet/device-management-service/actor"
+import "github.com/depinkit/actor"
 ```
 
 The network substrate for NuActor is currently implemented with [libp2p](https://github.com/libp2p/go-libp2p), with broadcast using [gossipsub](https://github.com/libp2p/go-libp2p-pubsub).

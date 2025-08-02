@@ -10,8 +10,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/nunet/device-management-service/network"
-	"gitlab.com/nunet/device-management-service/types"
+	"github.com/depinkit/network"
+	"./types"
 )
 
 // signedEnv builds an envelope that is *properly signed* by sec and whose

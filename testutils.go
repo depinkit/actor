@@ -12,19 +12,18 @@ import (
 	"testing"
 	"time"
 
+	"./types"
+	"github.com/depinkit/crypto"
+	"github.com/depinkit/did"
+	"github.com/depinkit/network"
+	"github.com/depinkit/network/libp2p"
+	"github.com/depinkit/ucan"
 	"github.com/google/uuid"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	backgroundtasks "gitlab.com/nunet/device-management-service/internal/background_tasks"
-	"gitlab.com/nunet/device-management-service/internal/config"
-	"gitlab.com/nunet/device-management-service/lib/crypto"
-	"gitlab.com/nunet/device-management-service/lib/did"
-	"gitlab.com/nunet/device-management-service/lib/ucan"
-	"gitlab.com/nunet/device-management-service/network"
-	"gitlab.com/nunet/device-management-service/network/libp2p"
-	"gitlab.com/nunet/device-management-service/types"
+	"honnef.co/go/tools/config"
 )
 
 func MakeRootTrustContext(t *testing.T) (did.DID, did.TrustContext) {
@@ -176,7 +175,6 @@ func NewLibp2pNetwork(t *testing.T, bootstrap []multiaddr.Multiaddr) ([]multiadd
 			BootstrapPeers:          bootstrap,
 			Rendezvous:              "nunet-randevouz",
 			Server:                  false,
-			Scheduler:               backgroundtasks.NewScheduler(1, time.Second),
 			CustomNamespace:         "/nunet-dht-1/",
 			ListenAddress:           []string{"/ip4/127.0.0.1/tcp/0"},
 			PeerCountDiscoveryLimit: 40,

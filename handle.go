@@ -13,8 +13,8 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 
-	"gitlab.com/nunet/device-management-service/lib/crypto"
-	"gitlab.com/nunet/device-management-service/lib/did"
+	"github.com/depinkit/crypto"
+	"github.com/depinkit/did"
 )
 
 func (h *Handle) Empty() bool {

@@ -3,7 +3,7 @@ package actor
 import (
 	"testing"
 
-	"gitlab.com/nunet/device-management-service/lib/crypto"
+	"github.com/depinkit/crypto"
 )
 
 // NewTestSecurityContext returns a fully-wired BasicSecurityContext that’s ready

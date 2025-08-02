@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.com/nunet/device-management-service/lib/crypto"
-	"gitlab.com/nunet/device-management-service/lib/did"
-	"gitlab.com/nunet/device-management-service/lib/ucan"
+	"github.com/depinkit/crypto"
+	"github.com/depinkit/did"
+	"github.com/depinkit/ucan"
 )
 
 type BasicSecurityContext struct {

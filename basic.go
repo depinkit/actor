@@ -18,11 +18,10 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 
-	"gitlab.com/nunet/device-management-service/lib/crypto"
-	"gitlab.com/nunet/device-management-service/lib/did"
-	"gitlab.com/nunet/device-management-service/lib/ucan"
-	"gitlab.com/nunet/device-management-service/network"
-	"gitlab.com/nunet/device-management-service/types"
+	"github.com/depinkit/crypto"
+	"github.com/depinkit/did"
+	"github.com/depinkit/network"
+	"github.com/depinkit/ucan"
 )
 
 const (
@@ -36,7 +35,7 @@ var HealthCheckInterval = 30 * time.Second
 type BasicActor struct {
 	dispatch   *Dispatch
 	registry   Registry
-	network    network.Network
+	network    Network
 	security   SecurityContext
 	supervisor Handle
 	limiter    RateLimiter
@@ -58,7 +57,7 @@ var _ Actor = (*BasicActor)(nil)
 // New creates a new basic actor.
 func New(
 	supervisor Handle,
-	net network.Network,
+	net Network,
 	security *BasicSecurityContext,
 	limiter RateLimiter,
 	params BasicActorParams,
@@ -247,8 +246,8 @@ func (a *BasicActor) Send(msg Envelope) error {
 	err = a.network.SendMessage(
 		a.Context(),
 		msg.To.Address.HostID,
-		types.MessageEnvelope{
-			Type: types.MessageType(
+		MessageEnvelope{
+			Type: MessageType(
 				fmt.Sprintf("actor/%s/messages/0.0.1", msg.To.Address.InboxAddress),
 			),
 			Data: data,
@@ -423,41 +422,41 @@ func (a *BasicActor) Subscribe(topic string, setup ...BroadcastSetup) error {
 	return nil
 }
 
-func (a *BasicActor) validateBroadcast(topic string, data []byte, validatorData interface{}) (network.ValidationResult, interface{}) {
+func (a *BasicActor) validateBroadcast(topic string, data []byte, validatorData interface{}) (ValidationResult, interface{}) {
 	var msg Envelope
 	if validatorData != nil {
 		if _, ok := validatorData.(Envelope); !ok {
 			log.Warnf("bogus pubsub validation data: %v", validatorData)
-			return network.ValidationReject, nil
+			return ValidationReject, nil
 		}
 		// we have already validated the message, just short-circuit
 		return network.ValidationAccept, validatorData
 	} else if err := json.Unmarshal(data, &msg); err != nil {
-		return network.ValidationReject, nil
+		return ValidationReject, nil
 	}
 
 	if !msg.IsBroadcast() {
-		return network.ValidationReject, nil
+		return ValidationReject, nil
 	}
 
 	if msg.Options.Topic != topic {
-		return network.ValidationReject, nil
+		return ValidationReject, nil
 	}
 
 	if msg.Expired() {
-		return network.ValidationIgnore, nil
+		return ValidationIgnore, nil
 	}
 
 	if err := a.security.Verify(msg); err != nil {
-		return network.ValidationReject, nil
+		return ValidationReject, nil
 	}
 
 	if !a.limiter.Allow(msg) {
 		log.Warnf("incoming broadcast message in %s not allowed by limiter", topic)
-		return network.ValidationIgnore, nil
+		return ValidationIgnore, nil
 	}
 
-	return network.ValidationAccept, msg
+	return ValidationAccept, msg
 }
 
 func (a *BasicActor) handleBroadcast(data []byte) {

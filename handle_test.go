@@ -15,8 +15,8 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/nunet/device-management-service/lib/crypto"
-	"gitlab.com/nunet/device-management-service/lib/did"
+	"github.com/depinkit/crypto"
+	"github.com/depinkit/did"
 )
 
 // genHandle returns a fully-initialised Handle plus its peer.ID.

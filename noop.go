@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"gitlab.com/nunet/device-management-service/lib/did"
+	"github.com/depinkit/did"
 )
 
 type NoopActor struct {

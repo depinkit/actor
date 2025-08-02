@@ -18,11 +18,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/nunet/device-management-service/lib/did"
-	"gitlab.com/nunet/device-management-service/lib/ucan"
-	"gitlab.com/nunet/device-management-service/network"
-	"gitlab.com/nunet/device-management-service/network/libp2p"
-	"gitlab.com/nunet/device-management-service/observability"
+	"github.com/depinkit/did"
+	"github.com/depinkit/ucan"
+	"github.com/depinkit/network"
+	"github.com/depinkit/network/libp2p"
 )
 
 func TestNew(t *testing.T) {
@@ -420,7 +419,6 @@ func TestChildToChildBehaviorInvocation(t *testing.T) {
 	require.NoError(t, err)
 
 	// TODO: all of them should work
-	// https://gitlab.com/nunet/device-management-service/-/issues/875
 
 	// does NOT work
 	// err = parentB.Security().Grant(

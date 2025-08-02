@@ -13,8 +13,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/nunet/device-management-service/lib/crypto"
-	"gitlab.com/nunet/device-management-service/lib/ucan"
+	"github.com/depinkit/crypto"
+	"github.com/depinkit/ucan"
 )
 
 // newCtxPair creates two independent BasicSecurityContexts rooted in their own

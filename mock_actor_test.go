@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/nunet/device-management-service/lib/crypto"
-	"gitlab.com/nunet/device-management-service/lib/did"
-	"gitlab.com/nunet/device-management-service/lib/ucan"
-	"gitlab.com/nunet/device-management-service/network"
+	"github.com/depinkit/crypto"
+	"github.com/depinkit/did"
+	"github.com/depinkit/ucan"
+	"github.com/depinkit/network"
 )
 
 // setupTestSecurityContext creates a new security context for testing
