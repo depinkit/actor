@@ -65,7 +65,7 @@ The structure of the token is as following:
 ```go
 type Token struct {
 	// DMS tokens
-	DMS *DMSToken `json:"dms,omitempty"`
+	DMS *DomainToken `json:"dms,omitempty"`
 }
 
 type DomainToken struct {
