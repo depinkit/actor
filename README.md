@@ -330,6 +330,354 @@ necessary to ensure deterministic cleanup of tokens exchanged during
 the interaction. Please do not forget that.
 
 
+## Getting Started: Using NuActor with Network
+
+The NuActor framework uses the [`github.com/depinkit/network`](https://github.com/depinkit/network) package for peer-to-peer communication. The network package provides libp2p-based networking, DHT peer discovery, and gossipsub pub/sub messaging.
+
+**Note:** This actor package was extracted from and is actively used by [NuNet's Device Management Service (DMS)](https://gitlab.com/nunet/device-management-service), where it coordinates secure interactions between compute nodes in a decentralized network.
+
+### Installation
+
+```bash
+go get github.com/depinkit/actor
+go get github.com/depinkit/network
+go get github.com/depinkit/crypto
+go get github.com/depinkit/did
+go get github.com/depinkit/ucan
+```
+
+### Complete Example: Setting Up Actors
+
+Here's a complete example showing how to set up two actors communicating over the network:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/depinkit/actor"
+	"github.com/depinkit/crypto"
+	"github.com/depinkit/did"
+	"github.com/depinkit/network"
+	"github.com/depinkit/network/config"
+	"github.com/depinkit/network/libp2p"
+	"github.com/depinkit/ucan"
+	"github.com/multiformats/go-multiaddr"
+	"github.com/spf13/afero"
+	"gitlab.com/nunet/device-management-service/types"
+)
+
+func main() {
+	// Create two actors on different network nodes
+	actor1, net1 := createActorWithNetwork(9000, 9001, nil)
+	defer actor1.Stop()
+	defer net1.Stop()
+
+	actor2, net2 := createActorWithNetwork(9010, 9011, []string{
+		fmt.Sprintf("/ip4/127.0.0.1/tcp/9000/p2p/%s", net1.Host.ID()),
+	})
+	defer actor2.Stop()
+	defer net2.Stop()
+
+	// Wait for network to connect
+	time.Sleep(2 * time.Second)
+
+	// Register a behavior on actor2
+	actor2.AddBehavior("/greet", func(msg actor.Envelope) {
+		defer msg.Discard()
+
+		var request string
+		json.Unmarshal(msg.Message, &request)
+		fmt.Printf("Actor2 received: %s from %s\n", request, msg.From.DID)
+
+		// Send reply
+		reply, _ := actor.ReplyTo(msg, "Hello back!")
+		actor2.Send(reply)
+	})
+
+	// Actor1 sends a message to Actor2
+	message, _ := actor.Message(
+		actor1.Handle(),
+		actor2.Handle(),
+		"/greet",
+		"Hello Actor2!",
+	)
+
+	// Send and wait for reply
+	replyChan, _ := actor1.Invoke(message)
+	reply := <-replyChan
+	defer reply.Discard()
+
+	var response string
+	json.Unmarshal(reply.Message, &response)
+	fmt.Printf("Actor1 received reply: %s\n", response)
+}
+
+func createActorWithNetwork(tcpPort, quicPort int, bootstrap []string) (actor.Actor, *libp2p.Libp2p) {
+	// Generate identity
+	priv, _ := crypto.GeneratePrivateKey(crypto.KEY_ED25519)
+	rootDID := did.FromPublicKey(priv.GetPublic())
+	
+	// Create trust context
+	trustCtx := did.NewTrustContext(priv)
+	
+	// Create capability context
+	capCtx := ucan.NewCapabilityContext(trustCtx)
+	capCtx.AddRoot(rootDID) // Trust self
+	
+	// Create network configuration
+	cfg := &config.Config{
+		P2P: config.P2P{
+			ListenAddress: []string{
+				fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", tcpPort),
+				fmt.Sprintf("/ip4/0.0.0.0/udp/%d/quic-v1", quicPort),
+			},
+			BootstrapPeers: bootstrap,
+		},
+	}
+	
+	// Parse bootstrap peers
+	var bootstrapPeers []multiaddr.Multiaddr
+	for _, addr := range bootstrap {
+		ma, _ := multiaddr.NewMultiaddr(addr)
+		bootstrapPeers = append(bootstrapPeers, ma)
+	}
+	
+	// Create libp2p configuration
+	libp2pCfg := &types.Libp2pConfig{
+		PrivateKey:     priv,
+		ListenAddress:  cfg.P2P.ListenAddress,
+		BootstrapPeers: bootstrapPeers,
+		Rendezvous:     "nuactor-example",
+		Server:         false,
+	}
+	
+	// Create and initialize network
+	fs := afero.NewOsFs()
+	net, _ := libp2p.NewLibp2p(libp2pCfg, fs)
+	net.Init(cfg)
+	net.Start()
+	
+	// Create actor security context
+	actorSecurity := actor.NewBasicSecurityContext(priv, rootDID, capCtx)
+	
+	// Create supervisor handle
+	supervisor := actor.Handle{
+		ID:  actorSecurity.ID(),
+		DID: rootDID,
+		Address: actor.Address{
+			HostID: net.Host.ID().String(),
+		},
+	}
+	
+	// Create actor
+	limiter := actor.NewRateLimiter(actor.RateLimiterConfig{
+		PublicLimitAllow:      100,
+		PublicLimitAcquire:    10,
+		BroadcastLimitAllow:   100,
+		BroadcastLimitAcquire: 10,
+	})
+	
+	actorInstance, _ := actor.New(supervisor, net, actorSecurity, limiter)
+	actorInstance.Start()
+	
+	return actorInstance, net
+}
+```
+
+### Sending Messages Between Actors
+
+Once you have actors connected via the network, you can send messages:
+
+```go
+// Define your message type
+type GreetingRequest struct {
+	Name    string `json:"name"`
+	Message string `json:"message"`
+}
+
+type GreetingResponse struct {
+	Reply string `json:"reply"`
+}
+
+// On the receiving actor
+receiverActor.AddBehavior("/api/greet", func(msg actor.Envelope) {
+	defer msg.Discard()
+	
+	var req GreetingRequest
+	if err := json.Unmarshal(msg.Message, &req); err != nil {
+		log.Error("Invalid message format")
+		return
+	}
+	
+	log.Infof("Received greeting from %s: %s", req.Name, req.Message)
+	
+	// Send response
+	response := GreetingResponse{
+		Reply: fmt.Sprintf("Hello %s, nice to meet you!", req.Name),
+	}
+	
+	replyMsg, _ := actor.ReplyTo(msg, response)
+	receiverActor.Send(replyMsg)
+}, actor.WithBehaviorCapability("/api/greet"))
+
+// On the sending actor
+request := GreetingRequest{
+	Name:    "Alice",
+	Message: "Hello from Alice!",
+}
+
+msg, _ := actor.Message(
+	senderActor.Handle(),
+	receiverActor.Handle(),
+	"/api/greet",
+	request,
+)
+
+// For one-way send
+_ = senderActor.Send(msg)
+
+// For request-response (invoke)
+replyChan, _ := senderActor.Invoke(msg)
+reply := <-replyChan
+defer reply.Discard()
+
+var response GreetingResponse
+json.Unmarshal(reply.Message, &response)
+fmt.Printf("Got reply: %s\n", response.Reply)
+```
+
+### Broadcasting to Multiple Actors
+
+Use pub/sub for one-to-many communication:
+
+```go
+// All actors subscribe to a topic
+topic := "/notifications/system"
+
+// On each actor that wants to receive broadcasts
+actor.Subscribe(topic)
+actor.AddBehavior("/notify", func(msg actor.Envelope) {
+	defer msg.Discard()
+	
+	var notification string
+	json.Unmarshal(msg.Message, &notification)
+	fmt.Printf("Received notification: %s\n", notification)
+}, actor.WithBehaviorTopic(topic))
+
+// Broadcasting actor sends to all subscribers
+notification := "System update available!"
+msg, _ := actor.Message(
+	broadcasterActor.Handle(),
+	actor.Handle{}, // Empty handle for broadcast
+	"/notify",
+	notification,
+	actor.WithMessageTopic(topic),
+)
+
+_ = broadcasterActor.Publish(msg)
+```
+
+### Working with Capabilities
+
+Actors can grant capabilities to each other for authorized operations:
+
+```go
+// Actor A grants capability to Actor B
+capability := "/api/write"
+expiry := 24 * time.Hour
+
+actorA.Security().Grant(
+	actorB.Handle().DID,  // to whom
+	actorA.Handle().DID,  // audience (optional)
+	[]ucan.Capability{{Path: capability}},
+	expiry,
+)
+
+// Actor B can now invoke behaviors requiring that capability
+msg, _ := actor.Message(
+	actorB.Handle(),
+	actorA.Handle(),
+	"/api/write",
+	dataToWrite,
+)
+
+// The capability token is automatically included and verified
+_ = actorB.Send(msg)
+```
+
+### Network Discovery and Connection
+
+Actors automatically discover each other via the network's DHT:
+
+```go
+// Configure network with bootstrap peers
+cfg := &config.Config{
+	P2P: config.P2P{
+		ListenAddress: []string{
+			"/ip4/0.0.0.0/tcp/9000",
+			"/ip4/0.0.0.0/udp/9001/quic-v1",
+		},
+		BootstrapPeers: []string{
+			// Well-known bootstrap nodes
+			"/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
+		},
+	},
+}
+
+// The network will automatically:
+// 1. Connect to bootstrap peers
+// 2. Discover other peers via DHT
+// 3. Maintain connections
+// 4. Enable NAT traversal via relay/hole-punching
+
+// Actors can now communicate without manual peer management
+```
+
+### Error Handling Best Practices
+
+Always handle errors in production code:
+
+```go
+// Creating an actor
+actorInstance, err := actor.New(supervisor, network, security, limiter)
+if err != nil {
+	return fmt.Errorf("failed to create actor: %w", err)
+}
+
+// Starting an actor
+if err := actorInstance.Start(); err != nil {
+	return fmt.Errorf("failed to start actor: %w", err)
+}
+defer func() {
+	if err := actorInstance.Stop(); err != nil {
+		log.Errorf("Failed to stop actor: %v", err)
+	}
+}()
+
+// Sending messages
+msg, err := actor.Message(from, to, "/behavior", payload)
+if err != nil {
+	return fmt.Errorf("failed to create message: %w", err)
+}
+
+if err := actorInstance.Send(msg); err != nil {
+	return fmt.Errorf("failed to send message: %w", err)
+}
+
+// Adding behaviors
+err = actorInstance.AddBehavior("/my/behavior", handler,
+	actor.WithBehaviorCapability("/my/behavior"),
+)
+if err != nil {
+	return fmt.Errorf("failed to add behavior: %w", err)
+}
+```
+
+
 ## Behind the Scenes
 ### Sending a Message
 ![Send a Message](img/SendMessage-24-09-04-1229.svg)
