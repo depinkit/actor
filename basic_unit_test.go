@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/depinkit/network"
-	"./types"
+	"gitlab.com/nunet/device-management-service/types"
 )
 
 // signedEnv builds an envelope that is *properly signed* by sec and whose

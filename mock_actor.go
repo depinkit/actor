@@ -10,6 +10,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/nunet/device-management-service/types"
 
 	"github.com/depinkit/crypto"
 	"github.com/depinkit/did"
@@ -148,8 +149,8 @@ func (a *MockActor) Send(msg Envelope) error {
 	err = a.network.SendMessage(
 		a.Context(),
 		msg.To.Address.HostID,
-		MessageEnvelope{
-			Type: MessageType(protocol),
+		types.MessageEnvelope{
+			Type: types.MessageType(protocol),
 			Data: data,
 		},
 		msg.Expiry(),
