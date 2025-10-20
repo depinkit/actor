@@ -17,13 +17,13 @@ import (
 	"github.com/depinkit/network"
 	"github.com/depinkit/network/config"
 	"github.com/depinkit/network/libp2p"
+	"github.com/depinkit/network/types"
 	"github.com/depinkit/ucan"
 	"github.com/google/uuid"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/nunet/device-management-service/types"
 )
 
 func MakeRootTrustContext(t *testing.T) (did.DID, did.TrustContext) {
